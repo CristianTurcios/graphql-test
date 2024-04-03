@@ -1,0 +1,20 @@
+version: '3.8'
+services:
+  api:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "4000:4000"
+    container_name: santex-backend-challenge
+    links:
+      - mongo-db
+  mongo-db:
+    image: mongo
+    ports:
+      - "27017:27017"
+    container_name: mongo-db
+    volumes:
+      - ./db/:/data/db
