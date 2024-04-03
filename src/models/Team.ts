@@ -1,9 +1,10 @@
 // Import necessary modules
 import mongoose, { Schema, Document } from 'mongoose';
+import { ICompetition } from './Competition';
 
 export interface ITeam extends Document {
     teamId: number;
-    // competition: any;
+    competition: number;
     name: string;
     tla: string;
     shortname: string;
@@ -16,7 +17,7 @@ export interface ITeam extends Document {
 const teamSchema: Schema<ITeam> = new Schema(
     {
         teamId: { type: Number, required: true, unique: true },
-        // competition: { type: Schema.Types.ObjectId, ref: 'Competition' },
+        competition: { type: Schema.Types.Number, ref: 'Competition' },
         name: { type: String, required: true },
         tla: { type: String, required: true },
         shortname: { type: String, required: true },

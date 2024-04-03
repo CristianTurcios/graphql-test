@@ -9,10 +9,12 @@ import {
 } from 'graphql';
 import UserType from './User';
 import MovieType from './Movie';
+import TeamType from './Team';
+import CompetitionType from './Competition';
+
 import Movie from '../models/Movie';
 import User from '../models/User';
 import Competition from '../models/Competition';
-import CompetitionType from './Competition';
 import { hashPassword } from '../utils/passwordUtils';
 import { getLeague, getTeams } from '../services/league';
 import Team from '../models/Team';
@@ -50,6 +52,41 @@ const RootQuery = new GraphQLObjectType({
                         id: competition._id,
                         createdAt: competition.createdAt.toISOString(),
                         updatedAt: competition.updatedAt.toISOString(),
+                    };
+                } catch (error) {
+                    throw new Error(error.message);
+                }
+            },
+        },
+        teams: {
+            type: GraphQLList(TeamType),
+            resolve: async () => {
+                try {
+                    const teams = await Team.find();
+                    return teams.map((team) => ({
+                        ...team.toObject(),
+                        id: team._id,
+                        createdAt: team.createdAt.toISOString(), // Format createdAt as ISO 8601
+                        updatedAt: team.updatedAt.toISOString(), // Format createdAt as ISO 8601
+                    }));
+                } catch (error) {
+                    throw new Error(error.message);
+                }
+            },
+        },
+        team: {
+            type: GraphQLList(TeamType),
+            args: { id: { type: GraphQLNonNull(GraphQLInt) } },
+            resolve: async (_, args) => {
+                try {
+                    const team = await Team.findById(args.id);
+                    console.log('team1111', team)
+
+                    return {
+                        ...team.toObject(),
+                        id: team._id,
+                        createdAt: team.createdAt.toISOString(),
+                        updatedAt: team.updatedAt.toISOString(),
                     };
                 } catch (error) {
                     throw new Error(error.message);

@@ -45,7 +45,7 @@ export const getTeams = async (leagueCode: number) => {
 
             return {
                 teamId: element.id,
-                // competitionId: leagueCode,
+                competition: leagueCode,
                 name: element.name,
                 tla: element.tla,
                 shortname: element.shortName,
