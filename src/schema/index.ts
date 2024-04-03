@@ -11,7 +11,6 @@ import UserType from './User';
 import MovieType from './Movie';
 import TeamType from './Team';
 import CompetitionType from './Competition';
-
 import Movie from '../models/Movie';
 import User from '../models/User';
 import Competition from '../models/Competition';
@@ -62,12 +61,12 @@ const RootQuery = new GraphQLObjectType({
             type: GraphQLList(TeamType),
             resolve: async () => {
                 try {
-                    const teams = await Team.find();
+                    const teams = await Team.find().populate('competition');
                     return teams.map((team) => ({
                         ...team.toObject(),
-                        id: team._id,
-                        createdAt: team.createdAt.toISOString(), // Format createdAt as ISO 8601
-                        updatedAt: team.updatedAt.toISOString(), // Format createdAt as ISO 8601
+                        // id: team._id,
+                        // createdAt: team.createdAt.toISOString(), // Format createdAt as ISO 8601
+                        // updatedAt: team.updatedAt.toISOString(), // Format createdAt as ISO 8601
                     }));
                 } catch (error) {
                     throw new Error(error.message);
@@ -75,19 +74,23 @@ const RootQuery = new GraphQLObjectType({
             },
         },
         team: {
-            type: GraphQLList(TeamType),
-            args: { id: { type: GraphQLNonNull(GraphQLInt) } },
+            type: TeamType,
+            args: { name: { type: GraphQLNonNull(GraphQLString) } },
             resolve: async (_, args) => {
                 try {
-                    const team = await Team.findById(args.id);
+                    const team = await Team.findOne({ name: args.name.trim() }).populate('competition');
                     console.log('team1111', team)
 
-                    return {
-                        ...team.toObject(),
-                        id: team._id,
-                        createdAt: team.createdAt.toISOString(),
-                        updatedAt: team.updatedAt.toISOString(),
-                    };
+                    if(team) {
+                        return {
+                            ...team.toObject(),
+                            // id: team._id,
+                            // createdAt: team.createdAt.toISOString(),
+                            // updatedAt: team.updatedAt.toISOString(),
+                        };
+                    }
+
+                    return {};                    
                 } catch (error) {
                     throw new Error(error.message);
                 }
@@ -181,14 +184,14 @@ const Mutation = new GraphQLObjectType({
                     const competitions = await getLeague(leagueCode);
 
                     if(competitions) {
-                        const { teams, squad } = await getTeams(leagueCode);
+                        const competition = new Competition(competitions);
+                        const result = await competition.save();
+                        const { teams, squad } = await getTeams(leagueCode, result);
                         console.log('leagueCode', leagueCode);
                         console.log('competitions', competitions);
                         console.log('teams', teams[0]);
                         console.log('squad', squad[0]);
 
-                        const competition = new Competition(competitions);
-                        const result = await competition.save();
                         await Team.insertMany(teams, { ordered: true });
                         await Player.insertMany(squad, { ordered: true });
                         return result;

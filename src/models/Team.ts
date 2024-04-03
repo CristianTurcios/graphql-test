@@ -4,7 +4,7 @@ import { ICompetition } from './Competition';
 
 export interface ITeam extends Document {
     teamId: number;
-    competition: number;
+    competition: any;
     name: string;
     tla: string;
     shortname: string;
@@ -17,7 +17,7 @@ export interface ITeam extends Document {
 const teamSchema: Schema<ITeam> = new Schema(
     {
         teamId: { type: Number, required: true, unique: true },
-        competition: { type: Schema.Types.Number, ref: 'Competition' },
+        competition: { type: Schema.Types.ObjectId, ref: 'Competition' },
         name: { type: String, required: true },
         tla: { type: String, required: true },
         shortname: { type: String, required: true },

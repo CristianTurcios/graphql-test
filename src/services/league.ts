@@ -27,8 +27,9 @@ export const getLeague = async (leagueCode: number) => {
     }
 };
 
-export const getTeams = async (leagueCode: number) => {
+export const getTeams = async (leagueCode: number, result: any) => {
     try {
+        console.log('result', result);
         const options = {
             'method': 'GET',
             'headers': {
@@ -45,7 +46,7 @@ export const getTeams = async (leagueCode: number) => {
 
             return {
                 teamId: element.id,
-                competition: leagueCode,
+                competition: result._id,
                 name: element.name,
                 tla: element.tla,
                 shortname: element.shortName,
