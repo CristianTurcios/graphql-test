@@ -11,14 +11,52 @@ import UserType from './User';
 import MovieType from './Movie';
 import Movie from '../models/Movie';
 import User from '../models/User';
-import LeagueType from './LeagueCode';
+import Competition from '../models/Competition';
+import CompetitionType from './Competition';
 import { hashPassword } from '../utils/passwordUtils';
-import { getLeague, getTeams, getPlayers } from '../services/importLeague';
+import { getLeague, getTeams } from '../services/league';
+import Team from '../models/Team';
+import Player from '../models/Player';
 
 // Queries
 const RootQuery = new GraphQLObjectType({
     name: 'RootQueryType',
     fields: {
+        competitions: {
+            type: GraphQLList(CompetitionType),
+            resolve: async () => {
+                try {
+                    const competitions = await Competition.find();
+                    return competitions.map((competition) => ({
+                        ...competition.toObject(),
+                        id: competition._id,
+                        createdAt: competition.createdAt.toISOString(), // Format createdAt as ISO 8601
+                        updatedAt: competition.updatedAt.toISOString(), // Format createdAt as ISO 8601
+                    }));
+                } catch (error) {
+                    throw new Error(error.message);
+                }
+            },
+        },
+        // Query to get a user by ID
+        competition: {
+            type: CompetitionType,
+            args: { id: { type: GraphQLNonNull(GraphQLInt) } },
+            resolve: async (_, args) => {
+                try {
+                    const competition = await Competition.findById(args.id);
+                    return {
+                        ...competition.toObject(),
+                        id: competition._id,
+                        createdAt: competition.createdAt.toISOString(),
+                        updatedAt: competition.updatedAt.toISOString(),
+                    };
+                } catch (error) {
+                    throw new Error(error.message);
+                }
+            },
+        },
+
         // Query to get all users
         users: {
             type: GraphQLList(UserType),
@@ -89,7 +127,7 @@ const Mutation = new GraphQLObjectType({
     fields: {
         importLeague: {
             // que peps?
-            type: LeagueType,
+            type: CompetitionType,
             args: {
                 leagueCode: { type: GraphQLNonNull(GraphQLInt) }
             },
@@ -97,15 +135,29 @@ const Mutation = new GraphQLObjectType({
             resolve: async (_, args) => {
                 try {
                     const { leagueCode } = args;
+                    const foundCompetition = await Competition.findOne({ competitionId: leagueCode });
+
+                    if (foundCompetition) {
+                        return foundCompetition;
+                    }
+
                     const competitions = await getLeague(leagueCode);
-                    const teams = await getTeams(leagueCode);
-                    const players = getPlayers(teams);
-                    console.log('leagueCode', leagueCode);
-                    console.log('competitions', competitions);
-                    console.log('teams', teams[0]);
-                    console.log('players', players);
-                    
-                    return { id: leagueCode};
+
+                    if(competitions) {
+                        const { teams, squad } = await getTeams(leagueCode);
+                        console.log('leagueCode', leagueCode);
+                        console.log('competitions', competitions);
+                        console.log('teams', teams[0]);
+                        console.log('squad', squad[0]);
+
+                        const competition = new Competition(competitions);
+                        const result = await competition.save();
+                        await Team.insertMany(teams, { ordered: true });
+                        await Player.insertMany(squad, { ordered: true });
+                        return result;
+                    }
+
+                    return { id: null };
                 } catch (error) {
                     throw new Error(error.message);
                 }
