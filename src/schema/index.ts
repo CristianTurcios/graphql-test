@@ -7,17 +7,13 @@ import {
     GraphQLInt,
     GraphQLBoolean,
 } from 'graphql';
-import UserType from './User';
-import MovieType from './Movie';
 import TeamType from './Team';
+import PlayerType from './Player';
 import CompetitionType from './Competition';
-import Movie from '../models/Movie';
-import User from '../models/User';
 import Competition from '../models/Competition';
-import { hashPassword } from '../utils/passwordUtils';
-import { getLeague, getTeams } from '../services/league';
-import Team from '../models/Team';
+import Team, { ITeam } from '../models/Team';
 import Player from '../models/Player';
+import { getLeague, getPlayers, getTeams } from '../services/league';
 
 // Queries
 const RootQuery = new GraphQLObjectType({
@@ -30,27 +26,20 @@ const RootQuery = new GraphQLObjectType({
                     const competitions = await Competition.find();
                     return competitions.map((competition) => ({
                         ...competition.toObject(),
-                        id: competition._id,
-                        createdAt: competition.createdAt.toISOString(), // Format createdAt as ISO 8601
-                        updatedAt: competition.updatedAt.toISOString(), // Format createdAt as ISO 8601
                     }));
                 } catch (error) {
                     throw new Error(error.message);
                 }
             },
         },
-        // Query to get a user by ID
         competition: {
             type: CompetitionType,
             args: { id: { type: GraphQLNonNull(GraphQLInt) } },
-            resolve: async (_, args) => {
+            resolve: async (_, { id }) => {
                 try {
-                    const competition = await Competition.findById(args.id);
+                    const competition = await Competition.findById(id);
                     return {
                         ...competition.toObject(),
-                        id: competition._id,
-                        createdAt: competition.createdAt.toISOString(),
-                        updatedAt: competition.updatedAt.toISOString(),
                     };
                 } catch (error) {
                     throw new Error(error.message);
@@ -64,9 +53,6 @@ const RootQuery = new GraphQLObjectType({
                     const teams = await Team.find().populate('competition');
                     return teams.map((team) => ({
                         ...team.toObject(),
-                        // id: team._id,
-                        // createdAt: team.createdAt.toISOString(), // Format createdAt as ISO 8601
-                        // updatedAt: team.updatedAt.toISOString(), // Format createdAt as ISO 8601
                     }));
                 } catch (error) {
                     throw new Error(error.message);
@@ -75,84 +61,69 @@ const RootQuery = new GraphQLObjectType({
         },
         team: {
             type: TeamType,
-            args: { name: { type: GraphQLNonNull(GraphQLString) } },
-            resolve: async (_, args) => {
+            args: { name: { type: GraphQLNonNull(GraphQLString) }, showSquad: { type: GraphQLBoolean } },
+            resolve: async (_, { name, showSquad }) => {
                 try {
-                    const team = await Team.findOne({ name: args.name.trim() }).populate('competition');
-                    console.log('team1111', team)
+                    const team = await Team.findOne({ name: { $regex: new RegExp(name.trim(), 'i') } }).populate('competition');
 
-                    if(team) {
-                        return {
-                            ...team.toObject(),
-                            // id: team._id,
-                            // createdAt: team.createdAt.toISOString(),
-                            // updatedAt: team.updatedAt.toISOString(),
-                        };
+                    if (!team) {
+                        throw new Error('Team not found');
                     }
 
-                    return {};                    
-                } catch (error) {
-                    throw new Error(error.message);
-                }
-            },
-        },
+                    if (showSquad) {
+                        const players = await Player.find({ team: team }).populate('team');
+                        return {
+                            ...team.toObject(),
+                            players,
+                        }
+                    }
 
-        // Query to get all users
-        users: {
-            type: GraphQLList(UserType),
-            resolve: async () => {
-                try {
-                    const users = await User.find();
-                    return users.map((user) => ({
-                        ...user.toObject(),
-                        id: user._id,
-                        createdAt: user.createdAt.toISOString(), // Format createdAt as ISO 8601
-                        updatedAt: user.updatedAt.toISOString(), // Format createdAt as ISO 8601
-                    }));
-                } catch (error) {
-                    throw new Error(error.message);
-                }
-            },
-        },
-
-        // Query to get a user by ID
-        user: {
-            type: UserType,
-            args: { id: { type: GraphQLNonNull(GraphQLString) } },
-            resolve: async (_, args) => {
-                try {
-                    const user = await User.findById(args.id);
                     return {
-                        ...user.toObject(),
-                        id: user._id,
-                        createdAt: user.createdAt.toISOString(),
-                        updatedAt: user.updatedAt.toISOString(),
+                        ...team.toObject(),
                     };
                 } catch (error) {
                     throw new Error(error.message);
                 }
             },
         },
-
-        // Query to get all movies
-        movies: {
-            type: GraphQLList(MovieType),
+        players: {
+            type: GraphQLList(PlayerType),
             resolve: async () => {
                 try {
-                    return await Movie.find();
+                    const players = await Player.find().populate('competition');
+                    return players.map((player) => ({
+                        ...player.toObject(),
+                    }));
                 } catch (error) {
                     throw new Error(error.message);
                 }
             },
         },
-
-        // Query to get a movie by ID
-        movie: {
-            type: MovieType,
-            args: { id: { type: GraphQLNonNull(GraphQLString) } },
-            resolve: async (_, args) => {
+        playersByLeague: {
+            type: GraphQLList(PlayerType),
+            args: { leagueCode: { type: GraphQLNonNull(GraphQLInt) }, teamName: { type: GraphQLString } },
+            resolve: async (_, { leagueCode, teamName }) => {
                 try {
-                    return await Movie.findById(args.id);
+                    const competition = (await Competition.findOne({ competitionId: leagueCode }));
+                    if (!competition) {
+                        throw new Error('Competition not found');
+                    }
+
+                    if (teamName) {
+                        const team = await Team.findOne({ name: { $regex: new RegExp(teamName.trim(), 'i') } });
+                        const players = await Player.find({ team: team }).populate('competition');
+
+                        return players.map((player) => ({
+                            ...player.toObject(),
+                            dateOfBirth: player.dateOfBirth.toLocaleDateString()
+                        }));
+                    }
+
+                    const players = await Player.find({ competition: competition }).populate('competition');
+                    return players.map((player) => ({
+                        ...player.toObject(),
+                        dateOfBirth: player.dateOfBirth.toLocaleDateString()
+                    }));
                 } catch (error) {
                     throw new Error(error.message);
                 }
@@ -166,15 +137,13 @@ const Mutation = new GraphQLObjectType({
     name: 'Mutation',
     fields: {
         importLeague: {
-            // que peps?
             type: CompetitionType,
             args: {
                 leagueCode: { type: GraphQLNonNull(GraphQLInt) }
             },
 
-            resolve: async (_, args) => {
+            resolve: async (_, { leagueCode }) => {
                 try {
-                    const { leagueCode } = args;
                     const foundCompetition = await Competition.findOne({ competitionId: leagueCode });
 
                     if (foundCompetition) {
@@ -183,134 +152,30 @@ const Mutation = new GraphQLObjectType({
 
                     const competitions = await getLeague(leagueCode);
 
-                    if(competitions) {
+                    if (competitions) {
                         const competition = new Competition(competitions);
-                        const result = await competition.save();
-                        const { teams, squad } = await getTeams(leagueCode, result);
-                        console.log('leagueCode', leagueCode);
-                        console.log('competitions', competitions);
-                        console.log('teams', teams[0]);
-                        console.log('squad', squad[0]);
+                        console.log(typeof competition)
+                        const competitionResult = await competition.save();
+                        const teams = await getTeams(leagueCode, competitionResult);
 
-                        await Team.insertMany(teams, { ordered: true });
-                        await Player.insertMany(squad, { ordered: true });
-                        return result;
+                        teams.forEach(async (element: ITeam) => {
+                            const players = element.squad;
+                            delete element.squad;
+                            const element2 = new Team(element)
+                            const teamResult = await element2.save();
+                            const squad = getPlayers(players, teamResult, competitionResult);
+                            await Player.insertMany(squad, { ordered: true });
+                        });
+
+                        return {
+                            competitionId: competition.id,
+                            area: competition.area,
+                            name: competition.name,
+                            code: competition.code
+                        };
                     }
 
-                    return { id: null };
-                } catch (error) {
-                    throw new Error(error.message);
-                }
-            },
-        },
-        // Mutation to add a new user
-        addUser: {
-            type: UserType,
-            args: {
-                email: { type: GraphQLNonNull(GraphQLString) },
-                username: { type: GraphQLNonNull(GraphQLString) },
-                password: { type: GraphQLNonNull(GraphQLString) },
-                isAdmin: { type: GraphQLNonNull(GraphQLBoolean) },
-            },
-
-            resolve: async (_, args) => {
-                try {
-                    // Destructure password
-                    const { password, ...others } = args;
-
-                    //   Send a hashed password
-                    const hashedPassword = await hashPassword(password);
-
-                    console.log(hashPassword);
-
-                    const user = new User({
-                        password: hashedPassword,
-                        ...others,
-                    });
-                    return await user.save();
-                } catch (error) {
-                    throw new Error(error.message);
-                }
-            },
-        },
-
-        // Mutation to update a user by ID
-        updateUser: {
-            type: UserType,
-            args: {
-                id: { type: GraphQLNonNull(GraphQLString) },
-                email: { type: GraphQLNonNull(GraphQLString) },
-                username: { type: GraphQLNonNull(GraphQLString) },
-                password: { type: GraphQLNonNull(GraphQLString) },
-                isAdmin: { type: GraphQLNonNull(GraphQLString) },
-            },
-            resolve: async (_, args) => {
-                try {
-                    return await User.findByIdAndUpdate(args.id, args, { new: true });
-                } catch (error) {
-                    throw new Error(error.message);
-                }
-            },
-        },
-
-        // Mutation to delete a user by ID
-        deleteUser: {
-            type: UserType,
-            args: { id: { type: GraphQLNonNull(GraphQLString) } },
-            resolve: async (_, args) => {
-                try {
-                    return await User.findByIdAndDelete(args.id);
-                } catch (error) {
-                    throw new Error(error.message);
-                }
-            },
-        },
-
-        // Mutation to add a new movie
-        addMovie: {
-            type: MovieType,
-            args: {
-                title: { type: GraphQLNonNull(GraphQLString) },
-                genre: { type: GraphQLNonNull(GraphQLString) },
-                rating: { type: GraphQLNonNull(GraphQLInt) },
-                duration: { type: GraphQLNonNull(GraphQLString) },
-            },
-            resolve: async (_, args) => {
-                try {
-                    const movie = new Movie(args);
-                    return await movie.save();
-                } catch (error) {
-                    throw new Error(error.message);
-                }
-            },
-        },
-
-        // Mutation to update a movie by ID
-        updateMovie: {
-            type: MovieType,
-            args: {
-                id: { type: GraphQLNonNull(GraphQLString) },
-                title: { type: GraphQLNonNull(GraphQLString) },
-                genre: { type: GraphQLNonNull(GraphQLString) },
-                rating: { type: GraphQLNonNull(GraphQLInt) },
-                duration: { type: GraphQLNonNull(GraphQLString) },
-            },
-            resolve: async (_, args) => {
-                try {
-                    return await Movie.findByIdAndUpdate(args.id, args, { new: true });
-                } catch (error) {
-                    throw new Error(error.message);
-                }
-            },
-        },
-
-        // Mutation to delete a movie by ID
-        deleteMovie: {
-            type: MovieType,
-            args: { id: { type: GraphQLNonNull(GraphQLString) } },
-            resolve: async (_, args) => {
-                try {
-                    return await Movie.findByIdAndDelete(args.id);
+                    throw new Error('Something went wrong');
                 } catch (error) {
                     throw new Error(error.message);
                 }

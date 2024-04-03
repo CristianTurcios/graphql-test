@@ -1,3 +1,7 @@
+import { ICompetition } from "models/Competition";
+import { IPlayer } from "../models/Player";
+import { Document } from 'mongoose';
+
 export const getLeague = async (leagueCode: number) => {
     try {
         const options = {
@@ -22,14 +26,12 @@ export const getLeague = async (leagueCode: number) => {
         }
         return competition;
     } catch (err) {
-        console.error('err del principal', err);
-        return null;
+        throw new Error(err.message);
     }
 };
 
-export const getTeams = async (leagueCode: number, result: any) => {
+export const getTeams = async (leagueCode: number, result: Document<ICompetition>) => {
     try {
-        console.log('result', result);
         const options = {
             'method': 'GET',
             'headers': {
@@ -39,10 +41,8 @@ export const getTeams = async (leagueCode: number, result: any) => {
 
         const response = await fetch(`${process.env.API_URL}/competitions/${leagueCode}/teams`, options);
         const data = await response.json();
-        const squad: any = [];
         const teams = data.teams.map((element: any) => {
             const tempSquad = element.squad.length > 0 ? element.squad : [element.coach];
-            squad.push(...getPlayers(tempSquad, element.id, leagueCode))
 
             return {
                 teamId: element.id,
@@ -52,22 +52,22 @@ export const getTeams = async (leagueCode: number, result: any) => {
                 shortname: element.shortName,
                 areaName: element.area.name,
                 address: element.address,
-
+                squad: tempSquad,
             }
         });
 
-        return { teams, squad: squad };
+        return teams;
     } catch (err) {
-        console.error('err', err);
+        throw new Error(err.message);
     }
 }
 
-export const getPlayers = (squad: any, teamId: number, leagueCode: number): any => {
+export const getPlayers = (squad: Array<IPlayer>, teamResult: Document<ICompetition>, competition: Document<ICompetition>) => {    
     const players = squad.map((element: any) => {
         return {
             playerId: element.id,
-            // teamId,
-            // competitionId: leagueCode,
+            team: teamResult._id,
+            competition: competition._id,
             name: element.name,
             position: 'contract' in element ? 'coach' : element.position,
             dateOfBirth: new Date(element.dateOfBirth),

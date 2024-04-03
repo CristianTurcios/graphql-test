@@ -1,4 +1,3 @@
-// Import necessary modules
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ICompetition extends Document {

@@ -1,10 +1,10 @@
-// Import necessary modules
 import mongoose, { Schema, Document } from 'mongoose';
 import { ICompetition } from './Competition';
+import { IPlayer } from './Player';
 
 export interface ITeam extends Document {
     teamId: number;
-    competition: any;
+    competition: ICompetition;
     name: string;
     tla: string;
     shortname: string;
@@ -12,6 +12,7 @@ export interface ITeam extends Document {
     address: string;
     createdAt: Date;
     updatedAt: Date;
+    squad?: Array<IPlayer>
 }
 
 const teamSchema: Schema<ITeam> = new Schema(
