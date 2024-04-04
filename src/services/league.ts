@@ -63,7 +63,7 @@ export const getTeams = async (leagueCode: number, result: Document<ICompetition
 }
 
 export const getPlayers = (squad: Array<IPlayer>, teamResult: Document<ICompetition>, competition: Document<ICompetition>) => {    
-    const players = squad.map((element: any) => {
+    const players = squad.map((element) => {
         return {
             playerId: element.id,
             team: teamResult._id,
