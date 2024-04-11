@@ -6,14 +6,14 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('getLeague', () => {
     it('should return league successfully', async () => {
-        const mockFakeTodoItem = {
+        const mockData = {
             id: 1,
             area: { name: 'area_name' },
             name: 'name',
             code: 'code'
         };
 
-        mockedAxios.get.mockResolvedValue({ data: mockFakeTodoItem });
+        mockedAxios.get.mockResolvedValue({ data: mockData });
 
         const competition = await getLeague(2016);
         expect(competition).toEqual({
