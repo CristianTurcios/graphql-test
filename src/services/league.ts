@@ -1,31 +1,32 @@
 import { ICompetition } from "models/Competition";
 import { IPlayer } from "../models/Player";
 import { Document } from 'mongoose';
+import axios from 'axios';
 
-export const getLeague = async (leagueCode: number) => {
+export const getLeague = async (leagueCode: number): Promise<any> => {
     try {
         const options = {
-            'method': 'GET',
             'headers': {
                 'X-Auth-Token': process.env.API_TOKEN
             },
         }
 
-        const response = await fetch(`${process.env.API_URL}/competitions/${leagueCode}`, options);
-        const data = await response.json();
+        const url = `${process.env.API_URL}/competitions/${leagueCode}`;
+        const response = await axios.get(url, options);
 
-        if('message' in data) {
+        if ('message' in response.data) {
             return null;
         }
 
         const competition = {
-            competitionId: data.id,
-            area: data.area.name,
-            name: data.name,
-            code: data.code,
-        }
+            competitionId: response.data.id,
+            area: response.data.area.name,
+            name: response.data.name,
+            code: response.data.code,
+        };
+
         return competition;
-    } catch (err) {
+    } catch (err: any) {
         throw new Error(err.message);
     }
 };
@@ -33,15 +34,15 @@ export const getLeague = async (leagueCode: number) => {
 export const getTeams = async (leagueCode: number, result: Document<ICompetition>) => {
     try {
         const options = {
-            'method': 'GET',
             'headers': {
                 'X-Auth-Token': process.env.API_TOKEN
             },
         }
 
-        const response = await fetch(`${process.env.API_URL}/competitions/${leagueCode}/teams`, options);
-        const data = await response.json();
-        const teams = data.teams.map((element: any) => {
+        const url = `${process.env.API_URL}/competitions/${leagueCode}/teams`;
+        const response = await axios.get(url, options);
+
+        const teams = response.data.teams.map((element: any) => {
             const tempSquad = element.squad.length > 0 ? element.squad : [element.coach];
 
             return {
@@ -57,7 +58,7 @@ export const getTeams = async (leagueCode: number, result: Document<ICompetition
         });
 
         return teams;
-    } catch (err) {
+    } catch (err: any) {
         throw new Error(err.message);
     }
 }

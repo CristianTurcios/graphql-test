@@ -154,7 +154,6 @@ const Mutation = new GraphQLObjectType({
 
                     if (competitions) {
                         const competition = new Competition(competitions);
-                        console.log(typeof competition)
                         const competitionResult = await competition.save();
                         const teams = await getTeams(leagueCode, competitionResult);
 
